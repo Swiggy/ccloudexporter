@@ -27,8 +27,8 @@ func main() {
 	prometheus.MustRegister(collector)
 
 	http.Handle("/metrics", promhttp.Handler())
-	fmt.Println("Listening on http://localhost:2112/metrics")
-	err := http.ListenAndServe(":2112", nil)
+	fmt.Println("Listening on http://0.0.0.0:2112/metrics")
+	err := http.ListenAndServe("0.0.0.0:2112", nil)
 	if err != nil {
 		panic(err)
 	}
