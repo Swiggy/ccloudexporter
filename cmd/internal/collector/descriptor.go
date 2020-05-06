@@ -25,9 +25,21 @@ type DescriptorResponse struct {
 // Metric from the  https://api.telemetry.confluent.cloud/v1/metrics/cloud/descriptors
 // response
 type MetricDescription struct {
-	Name        string `json:"name"`
-	Type        string `json:"type"`
-	Unit        string `json:"unit"`
+	Name        string        `json:"name"`
+	Type        string        `json:"type"`
+	Unit        string        `json:"unit"`
+	Description string        `json:"description"`
+	Labels      []MetricLabel `json:"labels"`
+}
+
+// Label of a metric, should contain a key and a description
+// e.g.
+//  {
+//      "description": "Name of the Kafka topic",
+//      "key": "topic"
+//  }
+type MetricLabel struct {
+	Key         string `json:"key"`
 	Description string `json:"description"`
 }
 
@@ -36,8 +48,18 @@ var (
 		"io.confluent.kafka.server": "",
 		"delta":                     "",
 	}
-	descriptorEndpoint = "https://api.telemetry.confluent.cloud/v1/metrics/cloud/descriptors"
+	descriptorUri = "/v1/metrics/cloud/descriptors"
 )
+
+// Return true if the metric has this label
+func (metric MetricDescription) hasLabel(label string) bool {
+	for _, l := range metric.Labels {
+		if l.Key == label {
+			return true
+		}
+	}
+	return false
+}
 
 // Return a human friendly metric name from a Confluent Cloud API metric
 func GetNiceNameForMetric(metric MetricDescription) string {
@@ -66,7 +88,8 @@ func SendDescriptorQuery() DescriptorResponse {
 		os.Exit(1)
 	}
 
-	req, err := http.NewRequest("GET", descriptorEndpoint, nil)
+	endpoint := HttpBaseUrl + descriptorUri
+	req, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {
 		panic(err)
 	}
