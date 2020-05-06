@@ -49,27 +49,31 @@ type Filter struct {
 
 // Response from the cloud endpoint
 type QueryResponse struct {
-	Data []Data `json:"data"`
+	Data []map[string]interface{} `json:"data"`
 }
 
-type Data struct {
-	Topic     string    `json:"metric.label.topic"`
-	Timestamp time.Time `json:"timestamp"`
-	Value     float64   `json:"value"`
-}
+// Actual data point from the query response
+// Only there for reference
+// type Data struct {
+// 	Topic      string    `json:"metric.label.topic"`
+// 	Cluster_id string    `json:"metric.label.cluster_id"`
+// 	Type       string    `json:"metric.label.type"`
+// 	Partition  string    `json:"metric.label.partition"`
+// 	Timestamp  time.Time `json:"timestamp"`
+// 	Value      float64   `json:"value"`
+// }
 
 var (
-	endpoint   = "https://api.telemetry.confluent.cloud/v1/metrics/cloud/query"
-	httpClient = http.Client{
-		Timeout: time.Second * 30,
-	}
+	queryUri = "/v1/metrics/cloud/query"
 )
 
 // Create a new Query for a metric for a specific cluster and time interval
-func BuildQuery(metric string, cluster string, timeFrom time.Time, timeTo time.Time) Query {
+func BuildQuery(metric MetricDescription, cluster string) Query {
+	timeFrom := time.Now().Add(time.Duration(Delay*-1) * time.Second) // the last minute might contains data that is not yet finalized
+
 	aggregation := Aggregation{
 		Agg:    "SUM",
-		Metric: metric,
+		Metric: metric.Name,
 	}
 
 	filter := Filter{
@@ -83,13 +87,18 @@ func BuildQuery(metric string, cluster string, timeFrom time.Time, timeTo time.T
 		Filters: []Filter{filter},
 	}
 
+	groupBy := []string{}
+	for _, label := range metric.Labels {
+		groupBy = append(groupBy, "metric.label."+label.Key)
+	}
+
 	return Query{
 		Aggreations: []Aggregation{aggregation},
 		Filter:      filterHeader,
-		Granularity: "PT1M",
-		GroupBy:     []string{"metric.label.topic"},
+		Granularity: Granularity,
+		GroupBy:     groupBy,
 		Limit:       1000,
-		Intervals:   []string{fmt.Sprintf("%s/%s", timeFrom.Format(time.RFC3339), timeTo.Format(time.RFC3339))},
+		Intervals:   []string{fmt.Sprintf("%s/%s", timeFrom.Format(time.RFC3339), Granularity)},
 	}
 }
 
@@ -110,6 +119,7 @@ func SendQuery(query Query) (QueryResponse, error) {
 	if err != nil {
 		panic(err)
 	}
+	endpoint := HttpBaseUrl + queryUri
 	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(jsonQuery))
 	if err != nil {
 		panic(err)
@@ -125,7 +135,7 @@ func SendQuery(query Query) (QueryResponse, error) {
 	}
 
 	if res.StatusCode != 200 {
-		errorMsg := fmt.Sprintf("Received status code %d instead of 200", res.StatusCode)
+		errorMsg := fmt.Sprintf("Received status code %d instead of 200 for POST on %s with %s", res.StatusCode, endpoint, jsonQuery)
 		return QueryResponse{}, errors.New(errorMsg)
 	}
 

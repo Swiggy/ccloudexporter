@@ -13,22 +13,17 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
-	"os"
 )
 
 func main() {
-	if len(os.Args) <= 1 {
-		fmt.Printf("Usage: %s <cluster id>\n", os.Args[0])
-		os.Exit(1)
-	}
+	collector.ParseOption()
 
-	cluster := os.Args[1]
-	collector := collector.NewCCloudCollector(cluster)
-	prometheus.MustRegister(collector)
+	ccollector := collector.NewCCloudCollector()
+	prometheus.MustRegister(ccollector)
 
 	http.Handle("/metrics", promhttp.Handler())
-	fmt.Println("Listening on http://0.0.0.0:2112/metrics")
-	err := http.ListenAndServe("0.0.0.0:2112", nil)
+	fmt.Printf("Listening on http://%s/metrics\n", collector.Listener)
+	err := http.ListenAndServe(collector.Listener, nil)
 	if err != nil {
 		panic(err)
 	}
