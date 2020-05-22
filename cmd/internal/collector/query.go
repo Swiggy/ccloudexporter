@@ -97,7 +97,7 @@ func BuildQuery(metric MetricDescription, cluster string) Query {
 		Filter:      filterHeader,
 		Granularity: Granularity,
 		GroupBy:     groupBy,
-		Limit:       1000,
+		Limit:       10000,
 		Intervals:   []string{fmt.Sprintf("%s/%s", timeFrom.Format(time.RFC3339), Granularity)},
 	}
 }
